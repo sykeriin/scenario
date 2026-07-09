@@ -15,6 +15,7 @@ import { getAIConfig } from "@/lib/ai-config";
 import { ApiKeyGate } from "@/components/ApiKeyGate";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { UniverseProvider } from "@/contexts/UniverseContext";
+import { SystemChatProvider } from "@/contexts/SystemChatContext";
 import { ensureSeeded } from "@/integrations/local/db";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
@@ -144,6 +145,7 @@ const App = () => {
       <ThemeProvider>
         <AuthProvider>
           <UniverseProvider>
+          <SystemChatProvider>
           <PomodoroProvider>
             <TooltipProvider>
               <Toaster />
@@ -157,6 +159,7 @@ const App = () => {
               </BrowserRouter>
             </TooltipProvider>
           </PomodoroProvider>
+          </SystemChatProvider>
           </UniverseProvider>
         </AuthProvider>
       </ThemeProvider>

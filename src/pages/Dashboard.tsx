@@ -1,34 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePomodoro } from "@/contexts/PomodoroContext";
 import { dataClient } from "@/lib/data-client";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { GlowingProgress } from "@/components/ui/GlowingProgress";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { Starfield } from "@/components/layout/Starfield";
+import { IconSidebar } from "@/components/layout/IconSidebar";
+import { ScenarioFocusCard } from "@/components/dashboard/ScenarioFocusCard";
+import { DisasterFocusCard } from "@/components/dashboard/DisasterFocusCard";
+import { DashboardRightPanel } from "@/components/dashboard/DashboardRightPanel";
+import { TagChip } from "@/components/dashboard/TagChip";
+import { useSystemChat } from "@/contexts/SystemChatContext";
 import { SystemAnnouncement } from "@/components/ui/SystemAnnouncement";
-import { ConstellationWidget } from "@/components/ConstellationWidget";
-import { PendingConstellationScenarios } from "@/components/PendingConstellationScenarios";
-import { PendingNebulaInvites } from "@/components/PendingNebulaInvites";
-import { LifePathWidget } from "@/components/LifePathWidget";
-import { ShadowSelfWidget } from "@/components/ShadowSelfWidget";
-import { DreamBoardWidget } from "@/components/DreamBoardWidget";
-import { DisasterCard } from "@/components/DisasterCard";
 import { CharacterVisitTrigger } from "@/components/CharacterVisitTrigger";
 import { DemonEncounterTrigger } from "@/components/DemonEncounterTrigger";
-import { RegressionCallout } from "@/components/RegressionCallout";
-import { DuelWidget } from "@/components/DuelWidget";
-import { PartyWidget } from "@/components/PartyWidget";
-import { PartyCreateDialog } from "@/components/PartyCreateDialog";
 import { MoodCheckIn } from "@/components/MoodCheckIn";
 import { NpcEncounterCard } from "@/components/NpcEncounterCard";
 import { PrestigeDialog } from "@/components/PrestigeDialog";
 import { Button } from "@/components/ui/button";
 import { ThemeName, themeNames } from "@/lib/themes";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useUniverse } from "@/hooks/useUniverse";
 import { FounderSwitcher } from "@/components/FounderSwitcher";
-import { DashboardNav } from "@/components/DashboardNav";
 import { WhatDoINowButton } from "@/components/WhatDoINowButton";
 import { isFeatureUnlocked } from "@/lib/unlocks";
 import { RankBadge } from "@/components/sl/RankBadge";
@@ -48,9 +42,8 @@ const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const pom = usePomodoro();
-  const { universe, t, isSoloLeveling, founderMode } = useUniverse();
+  const { t, isSoloLeveling, founderMode } = useUniverse();
   const sl = useSoloLeveling();
-  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [activeScenarios, setActiveScenarios] = useState<Scenario[]>([]);
@@ -62,10 +55,17 @@ const Dashboard = () => {
   const [todayPomodoros, setTodayPomodoros] = useState(0);
   const [hasLoggedMood, setHasLoggedMood] = useState(true);
   const [weeklyReviewPreview, setWeeklyReviewPreview] = useState<string | null>(null);
-  const [showPartyCreate, setShowPartyCreate] = useState(false);
   const [showPrestige, setShowPrestige] = useState(false);
   const [activeDisaster, setActiveDisaster] = useState<{ id: string; title: string; hp?: number } | null>(null);
   const [focusQuestTitle, setFocusQuestTitle] = useState<string | null>(null);
+  const [focusMode, setFocusMode] = useState<"scenario" | "disaster">("scenario");
+  const [lifePathPreview, setLifePathPreview] = useState<{
+    pathTitle: string;
+    arcTitle: string;
+    progress: number;
+    alignment: number;
+  } | null>(null);
+  const { setOpen: setChatOpen } = useSystemChat();
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
@@ -128,6 +128,32 @@ const Dashboard = () => {
       })
       .subscribe();
     return () => ch.unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    dataClient
+      .from("life_paths")
+      .select("id, title")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .limit(1)
+      .then(async ({ data: paths }) => {
+        if (!paths?.[0]) return;
+        const path = paths[0];
+        const { data: arcs } = await dataClient
+          .from("life_path_arcs")
+          .select("title, status, progress_pct")
+          .eq("life_path_id", path.id)
+          .order("order_index");
+        const activeArc = arcs?.find((a) => a.status === "active") ?? arcs?.[0];
+        setLifePathPreview({
+          pathTitle: path.title,
+          arcTitle: activeArc?.title ?? "",
+          progress: activeArc?.progress_pct ?? 0,
+          alignment: 78,
+        });
+      });
   }, [user]);
 
   // Weekly Review check — trigger on first login after Sunday
@@ -273,25 +299,6 @@ const Dashboard = () => {
     }
   };
 
-  // Build 30-day XP chart data (must be before early return)
-  const xpChartData = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      map[d.toISOString().split("T")[0]] = 0;
-    }
-    for (const log of xpLogs) {
-      if (!log.created_at) continue;
-      const day = log.created_at.split("T")[0];
-      if (day in map) map[day] += log.amount;
-    }
-    return Object.entries(map).map(([date, xp]) => ({
-      date: `${parseInt(date.split("-")[1])}/${parseInt(date.split("-")[2])}`,
-      xp,
-    }));
-  }, [xpLogs]);
-
   if (!profile) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -308,28 +315,24 @@ const Dashboard = () => {
   ];
 
   const stats = [
-    { label: "Physical", value: profile.stat_physical ?? 0, color: "hsl(var(--theme-red))" },
-    { label: "Psyche", value: profile.stat_psyche ?? 0, color: "hsl(var(--theme-blue))" },
-    { label: "Intel", value: profile.stat_intel ?? 0, color: "hsl(var(--theme-green))" },
-    { label: "Spiritual", value: profile.stat_spiritual ?? 0, color: "hsl(320 80% 55%)" },
-    { label: "Core", value: profile.stat_core ?? 0, color: "hsl(var(--primary))" },
-    { label: "Craft", value: profile.stat_craft ?? 0, color: "hsl(30 80% 55%)" },
+    { label: t("stat_physical"), value: profile.stat_physical ?? 0, color: "hsl(var(--theme-red))" },
+    { label: t("stat_psyche"), value: profile.stat_psyche ?? 0, color: "hsl(var(--theme-blue))" },
+    { label: t("stat_intel"), value: profile.stat_intel ?? 0, color: "hsl(var(--theme-green))" },
+    { label: t("stat_spiritual"), value: profile.stat_spiritual ?? 0, color: "hsl(320 80% 55%)" },
+    { label: t("stat_core"), value: profile.stat_core ?? 0, color: "hsl(var(--primary))" },
+    { label: t("stat_craft"), value: profile.stat_craft ?? 0, color: "hsl(30 80% 55%)" },
   ];
 
-  const totalStats = stats.reduce((s, x) => s + x.value, 0);
+  const statShort = stats.map((s) => s.label.slice(0, 3).toUpperCase());
   const xpForLevel = (profile.level ?? 1) * 200;
+  const xpInLevel = (profile.total_xp ?? 0) % xpForLevel;
+  const focusScenario = activeScenarios[0] ?? null;
+  const otherScenarios = activeScenarios.slice(1);
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0">
-      {showPartyCreate && (
-        <PartyCreateDialog
-          onClose={() => setShowPartyCreate(false)}
-          onCreated={(partyId) => {
-            setShowPartyCreate(false);
-            navigate(`/party/${partyId}`);
-          }}
-        />
-      )}
+    <div className="prototype-shell relative flex h-screen overflow-hidden bg-[hsl(var(--background)/0.96)] pb-16 md:pb-0">
+      <Starfield />
+
       {showPrestige && (
         <PrestigeDialog
           profile={profile}
@@ -343,258 +346,241 @@ const Dashboard = () => {
       {announcement && (
         <SystemAnnouncement message={announcement} onDismiss={() => setAnnouncement(null)} />
       )}
-      {/* Top Nav */}
-      <nav className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
-          <Link to="/dashboard" className="font-cinzel text-lg font-bold tracking-[0.15em] text-primary">
-            {isSoloLeveling ? 'SOLO LEVELING' : 'SCENARIO'}
-          </Link>
-          {founderMode && <FounderSwitcher />}
-          <DashboardNav level={profile.level ?? 1} founderMode={founderMode} />
+
+      <IconSidebar level={profile.level ?? 1} username={profile.username ?? undefined} />
+
+      <div className="relative z-[1] flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Top bar */}
+        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-[hsl(var(--surface)/0.82)] px-4 md:px-6">
           <div className="flex items-center gap-3">
+            <span className="font-cinzel text-[15px] font-bold text-foreground">
+              {profile.display_name || profile.username}
+            </span>
+            {isSoloLeveling ? (
+              <RankBadge rank={String(profile.hunter_rank ?? "E")} totalXp={profile.total_xp ?? 0} size="sm" />
+            ) : (
+              <TagChip>LV {profile.level ?? 1}</TagChip>
+            )}
+            <TagChip color="hsl(var(--muted-foreground))">{profile.current_title ?? "—"}</TagChip>
+            {(profile.prestige_level ?? 0) > 0 && (
+              <TagChip color="hsl(var(--muted-foreground))">P{profile.prestige_level}</TagChip>
+            )}
+          </div>
+
+          <div className="hidden max-w-[300px] flex-1 sm:block">
+            <GlowingProgress value={xpInLevel} max={xpForLevel} height="h-[5px]" />
+          </div>
+          <span className="hidden font-mono-stat text-[10px] whitespace-nowrap text-muted-foreground sm:inline">
+            {(profile.total_xp ?? 0).toLocaleString()} / {((profile.level ?? 1) * xpForLevel).toLocaleString()} {t("xp")}
+          </span>
+
+          <div className="flex-1" />
+
+          {founderMode && <FounderSwitcher />}
+
+          <div className="flex overflow-hidden rounded-lg border border-border bg-[hsl(var(--dim))]">
             <button
               type="button"
-              onClick={() => pom.setOpenGlobal(true)}
-              className="font-mono-stat text-xs text-primary px-2 py-1 rounded border border-primary/30"
+              onClick={() => setFocusMode("scenario")}
+              className={`px-3 py-1.5 font-cinzel text-[10px] font-bold tracking-wider transition-all md:px-4 ${
+                focusMode === "scenario"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
+              }`}
             >
-              {pom.isActive ? `⏱ ${String(Math.floor(pom.secondsLeft / 60)).padStart(2, '0')}:${String(pom.secondsLeft % 60).padStart(2, '0')}` : '⏱'}
+              {t("scenario").toUpperCase()}
             </button>
-            <Link to="/settings" className="font-mono-stat text-[10px] text-muted-foreground hover:text-primary">Settings</Link>
             <button
-              onClick={() => setShowThemePicker(!showThemePicker)}
-              className="flex items-center gap-2 px-2 py-1 rounded border text-xs font-mono-stat"
+              type="button"
+              onClick={() => setFocusMode("disaster")}
+              className={`relative px-3 py-1.5 font-cinzel text-[10px] font-bold tracking-wider transition-all md:px-4 ${
+                focusMode === "disaster"
+                  ? "bg-destructive text-white"
+                  : "text-muted-foreground"
+              }`}
             >
-              <div className="h-2 w-2 rounded-full" style={{ background: "hsl(var(--primary))" }} />
-              <span className="hidden sm:inline text-muted-foreground">{theme}</span>
+              {t("disaster").toUpperCase()}
+              {activeDisaster && (
+                <span className="absolute right-1.5 top-1 h-1.5 w-1.5 rounded-full bg-destructive shadow-[0_0_6px_hsl(var(--destructive))]" />
+              )}
             </button>
-            <Button variant="ghost" size="sm" onClick={signOut} className="font-mono-stat text-[10px]">
-              Exit
-            </Button>
           </div>
-        </div>
+
+          <button
+            type="button"
+            onClick={() => pom.setOpenGlobal(true)}
+            className="hidden font-mono-stat text-xs text-primary rounded-lg border border-primary/30 px-2 py-1 md:inline"
+          >
+            {pom.isActive
+              ? `⏱ ${String(Math.floor(pom.secondsLeft / 60)).padStart(2, "0")}:${String(pom.secondsLeft % 60).padStart(2, "0")}`
+              : "⏱"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 font-body text-xs font-semibold text-primary"
+          >
+            <span>✦</span>
+            <span className="hidden sm:inline">Ask System</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowThemePicker(!showThemePicker)}
+            className="hidden items-center gap-2 rounded border px-2 py-1 font-mono-stat text-xs md:flex"
+          >
+            <div className="h-2 w-2 rounded-full bg-primary" />
+            <span className="text-muted-foreground">{theme}</span>
+          </button>
+
+          <Link to="/settings" className="hidden font-mono-stat text-[10px] text-muted-foreground hover:text-primary md:inline">
+            Settings
+          </Link>
+          <Button variant="ghost" size="sm" onClick={signOut} className="hidden font-mono-stat text-[10px] md:inline-flex">
+            Exit
+          </Button>
+        </header>
+
         {showThemePicker && (
-          <div className="absolute right-4 top-14 z-50 rounded-lg border bg-card p-3 shadow-lg grid grid-cols-2 gap-2 w-64 animate-fade-in">
+          <div className="absolute right-4 top-14 z-50 grid w-64 grid-cols-2 gap-2 rounded-lg border bg-card p-3 shadow-lg animate-fade-in">
             {themeNames.map((name) => (
               <button
                 key={name}
+                type="button"
                 onClick={async () => {
                   setTheme(name);
                   setShowThemePicker(false);
                   if (user) await dataClient.from("profiles").update({ ui_theme: name }).eq("id", user.id);
                 }}
-                className="flex items-center gap-2 p-2 rounded text-left hover:bg-accent text-xs font-mono-stat transition-colors"
+                className="flex items-center gap-2 rounded p-2 text-left font-mono-stat text-xs transition-colors hover:bg-accent"
               >
-                <div className="h-2 w-2 rounded-full" style={{ background: "hsl(var(--primary))" }} />
+                <div className="h-2 w-2 rounded-full bg-primary" />
                 {name}
               </button>
             ))}
           </div>
         )}
-      </nav>
 
-      {/* Identity strip + Focus card */}
-      <div className="max-w-7xl mx-auto px-4 pt-4 space-y-4">
+        {/* SL overlays */}
         {isSoloLeveling && sl.penaltyActive && (
           <PenaltyZoneOverlay onClear={() => sl.setPenaltyActive(false)} />
         )}
-        {isSoloLeveling && sl.questSet && !sl.penaltyActive && (
-          <DailyQuestPanel questSet={sl.questSet} onUpdate={sl.refresh} />
-        )}
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card/60 px-4 py-2">
-          <span className="font-cinzel text-sm font-bold text-primary">{profile.username}</span>
-          <span className="text-muted-foreground">·</span>
-          {isSoloLeveling ? (
-            <>
-              <RankBadge rank={String(profile.hunter_rank ?? 'E')} totalXp={profile.total_xp ?? 0} size="sm" />
-              <span className="font-mono-stat text-xs">{t('level')} {profile.level ?? 1}</span>
-            </>
-          ) : (
-            <span className="font-mono-stat text-xs">Lv {profile.level ?? 1}</span>
-          )}
-          <div className="flex-1 min-w-[120px] max-w-xs">
-            <GlowingProgress value={(profile.total_xp ?? 0) % 500} max={500} color="hsl(var(--primary))" height="h-2" />
-          </div>
-          <span className="font-mono-stat text-[10px] text-muted-foreground">{profile.total_xp ?? 0} {t('xp')}</span>
-          <span className="font-mono-stat text-[10px] text-primary">{profile.current_title}</span>
-        </div>
-        {activeDisaster ? (
-          <div className="rounded-xl border-2 border-destructive/40 bg-card p-6 min-h-[140px]">
-            <p className="font-mono-stat text-[9px] uppercase tracking-widest text-destructive mb-2">⚠ Active {t('disaster')}</p>
-            <h2 className="font-cinzel text-lg font-bold text-foreground">{activeDisaster.title}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{activeDisaster.hp ?? '?'} HP remaining</p>
-          </div>
-        ) : activeScenarios[0] ? (
-          <div className="rounded-xl border-2 border-primary/30 bg-card p-6 min-h-[140px]">
-            <p className="font-mono-stat text-[9px] uppercase tracking-widest text-muted-foreground mb-2">Focus now</p>
-            <h2 className="font-cinzel text-lg font-bold text-foreground">{activeScenarios[0].title}</h2>
-            {focusQuestTitle && <p className="text-sm text-muted-foreground mt-2">Next {t('quest').toLowerCase()}: {focusQuestTitle}</p>}
-            <Button className="mt-4" size="sm" onClick={() => navigate(`/scenarios/${activeScenarios[0].id}`)}>
-              Open {t('scenario').toLowerCase()} →
-            </Button>
-          </div>
-        ) : null}
-        <div className="flex gap-4">
-          {vitals.slice(0, 4).map((v) => (
-            <div key={v.key} className="flex items-center gap-2 text-xs font-mono-stat">
-              <span className="h-2 w-2 rounded-full" style={{ background: v.color }} />
-              {v.label} {v.value}
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Daily Vitals Strip */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {vitals.map((v) => (
-            <div key={v.key} className="rounded-lg border bg-card p-3 category-card animate-fade-in" style={{ borderLeftColor: v.color }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono-stat text-[10px] uppercase tracking-widest text-muted-foreground">
-                  ◆ {v.label}
-                </span>
-                <span className="font-mono-stat text-xs font-bold">{v.value}/10</span>
-              </div>
-              <GlowingProgress value={v.value} max={10} color={v.color} height="h-1.5" />
-              <div className="flex gap-1 mt-2 justify-end">
-                <button
-                  onClick={() => updateVital(v.key, -1)}
-                  className="font-mono-stat text-[10px] px-1.5 rounded border hover:bg-accent"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateVital(v.key, 1)}
-                  className="font-mono-stat text-[10px] px-1.5 rounded border hover:bg-accent"
-                >
-                  +
-                </button>
-              </div>
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* Left column — protagonist (prototype_v4) */}
+          <div className="hidden w-[190px] shrink-0 overflow-auto border-r border-border bg-[hsl(var(--surface)/0.82)] p-3.5 xl:block">
+            <SectionLabel>Protagonist</SectionLabel>
+            <div className="mt-2 font-cinzel text-[15px] font-bold text-primary">
+              {profile.display_name || profile.username}
             </div>
-          ))}
-          {/* Focus / Pomodoro card */}
-          <div className="rounded-lg border bg-card p-3 category-card animate-fade-in" style={{ borderLeftColor: "hsl(30 80% 55%)" }}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-mono-stat text-[10px] uppercase tracking-widest text-muted-foreground">
-                🍅 Focus
-              </span>
-              <span className="font-mono-stat text-xs font-bold">{todayPomodoros}/{(profile as any).daily_focus_goal ?? 4}</span>
-            </div>
-            <GlowingProgress value={todayPomodoros} max={(profile as any).daily_focus_goal ?? 4} color="hsl(30 80% 55%)" height="h-1.5" />
-            <div className="mt-2">
-              <span className="font-mono-stat text-[9px] text-muted-foreground">
-                {todayPomodoros >= ((profile as any).daily_focus_goal ?? 4) ? "✦ Goal reached!" : `${((profile as any).daily_focus_goal ?? 4) - todayPomodoros} to go`}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3-Column Layout */}
-      <div className="max-w-7xl mx-auto px-4 pb-8">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Left Column */}
-          <div className="w-full md:w-[200px] shrink-0 space-y-4">
-            {/* Level Badge */}
-            <div className="rounded-lg border bg-card p-4 text-center animate-scale-in">
-              <div className="font-cinzel text-2xl font-bold text-primary">
-                LV. {profile.level ?? 1}
-              </div>
-              <div className="font-mono-stat text-[10px] text-muted-foreground mt-1">
-                {profile.current_title ?? "Nameless Reader"}
-              </div>
+            <div className="mb-3 font-mono-stat text-[10px] text-muted-foreground">
+              {profile.current_title ?? "—"} · {t("level")} {profile.level ?? 1}
             </div>
 
-            {/* Avatar Placeholder */}
             <button
+              type="button"
               onClick={() => avatarInputRef.current?.click()}
-              className="rounded-lg border bg-card aspect-square flex items-center justify-center overflow-hidden w-full relative group cursor-pointer"
-              style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--surface)))" }}
+              className="relative mb-3.5 flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-gradient-to-br from-[hsl(var(--dim))] to-background"
               disabled={uploading}
             >
               {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                <img src={profile.avatar_url} alt="avatar" className="h-full w-full object-cover" />
               ) : (
-                <span className="font-mono-stat text-[10px] text-muted-foreground">
-                  {uploading ? "UPLOADING..." : "UPLOAD AVATAR"}
-                </span>
-              )}
-              {profile.avatar_url && (
-                <div className="absolute inset-0 bg-background/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="font-mono-stat text-[10px] text-foreground">
-                    {uploading ? "UPLOADING..." : "CHANGE"}
-                  </span>
+                <div className="text-center opacity-50">
+                  <div className="mb-1 text-3xl">{isSoloLeveling ? "⚔" : "✦"}</div>
+                  <div className="font-mono-stat text-[9px] text-muted-foreground">
+                    {uploading ? "UPLOADING..." : "UPLOAD AVATAR"}
+                  </div>
                 </div>
               )}
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarUpload}
-              />
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
             </button>
 
-            {/* Stats Panel */}
-            <div className="rounded-lg border bg-card p-4 space-y-3">
-              <SectionLabel prefix="✦">Stats</SectionLabel>
+            <SectionLabel>Stats</SectionLabel>
+            <div className="mt-2 space-y-2">
               {stats.map((s) => (
                 <div key={s.label}>
-                  <div className="flex justify-between mb-1">
-                    <span className="font-mono-stat text-[10px]">{s.label}</span>
-                    <span className="font-mono-stat text-[10px] text-muted-foreground">{s.value}</span>
+                  <div className="mb-0.5 flex justify-between">
+                    <span className="font-body text-[10px] text-foreground">{s.label}</span>
+                    <span className="font-mono-stat text-[9px] text-primary">{s.value}</span>
                   </div>
-                  <GlowingProgress value={s.value} max={100} color={s.color} height="h-1" />
+                  <GlowingProgress value={s.value} max={500} color={s.color} height="h-1" />
                 </div>
               ))}
-              <div className="border-t pt-2 flex justify-between">
-                <span className="font-mono-stat text-[10px] text-muted-foreground">TOTAL</span>
-                <span className="font-mono-stat text-xs font-bold">{totalStats}</span>
-              </div>
             </div>
+
+            {isSoloLeveling && <div className="mt-3.5"><ShadowArmyWidget /></div>}
+
+            {(profile.level ?? 1) >= 10 && (
+              <button
+                type="button"
+                onClick={() => setShowPrestige(true)}
+                className="mt-3.5 w-full rounded-lg border border-primary/30 bg-primary/10 py-2 font-cinzel text-[10px] font-bold tracking-wider text-primary"
+              >
+                {t("prestige").toUpperCase()} ↑
+              </button>
+            )}
           </div>
 
-          {/* Center Column */}
-          <div className="flex-1 min-w-0 space-y-4">
-            {/* Active Disasters — above everything */}
-            <DisasterCard />
-
-            {/* Mood Check-In */}
-            {!hasLoggedMood && (
-              <MoodCheckIn onComplete={() => setHasLoggedMood(true)} />
+          {/* Center */}
+          <div className="min-w-0 flex-1 overflow-auto p-4 md:p-6">
+            {isSoloLeveling && sl.questSet && !sl.penaltyActive && (
+              <div className="mb-4">
+                <DailyQuestPanel questSet={sl.questSet} onUpdate={sl.refresh} />
+              </div>
             )}
 
-            {/* Weekly Review Notification */}
+            {!hasLoggedMood && (
+              <div className="mb-4">
+                <MoodCheckIn onComplete={() => setHasLoggedMood(true)} />
+              </div>
+            )}
+
             {weeklyReviewPreview && (
               <Link
                 to="/review"
-                className="block rounded-lg border p-4 animate-fade-in hover:border-primary/40 transition-colors"
+                className="mb-4 block rounded-xl border p-4 transition-colors hover:border-primary/40"
                 style={{
                   borderColor: "hsl(var(--primary) / 0.25)",
                   background: "linear-gradient(135deg, hsl(var(--card)), hsl(var(--primary) / 0.05))",
                 }}
                 onClick={() => setWeeklyReviewPreview(null)}
               >
-                <div className="font-mono-stat text-[10px] uppercase tracking-widest text-primary mb-1">
+                <div className="mb-1 font-mono-stat text-[10px] uppercase tracking-widest text-primary">
                   ◆ Your Chronicle Has Been Updated
                 </div>
-                <p className="font-cinzel text-sm text-foreground" style={{ opacity: 0.85 }}>
-                  {weeklyReviewPreview}
-                </p>
-                <span className="font-mono-stat text-[9px] text-muted-foreground mt-2 block">
-                  Click to read full review →
-                </span>
+                <p className="font-cinzel text-sm text-foreground opacity-85">{weeklyReviewPreview}</p>
               </Link>
             )}
 
-            {/* NPC Encounter */}
             <NpcEncounterCard />
 
-            {/* Today's Intention */}
-            <div className="rounded-lg border bg-card p-4">
-              <SectionLabel prefix="◈">Today's Intention</SectionLabel>
+            {/* Vitals strip */}
+            <div className="mb-5 grid grid-cols-2 gap-2.5 md:grid-cols-4">
+              {vitals.map((v) => (
+                <div
+                  key={v.key}
+                  className="flex items-center justify-between rounded-xl border border-border bg-[hsl(var(--card)/0.75)] px-4 py-3"
+                >
+                  <span className="font-body text-xs text-muted-foreground">◆ {v.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono-stat text-base font-bold" style={{ color: v.color }}>
+                      {v.value}
+                    </span>
+                    <button type="button" onClick={() => updateVital(v.key, -1)} className="font-mono-stat text-[10px] text-muted-foreground">−</button>
+                    <button type="button" onClick={() => updateVital(v.key, 1)} className="font-mono-stat text-[10px] text-primary">+</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Today's intention */}
+            <div className="mb-5 rounded-xl border border-border bg-[hsl(var(--card)/0.5)] px-5 py-3.5">
+              <SectionLabel>{isSoloLeveling ? "Hunter Status" : "Today's Intention"}</SectionLabel>
               <input
-                className="w-full bg-transparent border-none outline-none mt-2 italic text-foreground font-body text-sm placeholder:text-muted-foreground"
-                placeholder="What is your intention today?"
+                className="mt-2 w-full border-none bg-transparent font-body text-xs italic text-foreground outline-none placeholder:text-muted-foreground"
+                placeholder={isSoloLeveling ? "Today I enter the gates prepared." : "Today I am locked in."}
                 defaultValue={profile.today_intention ?? ""}
                 onBlur={async (e) => {
                   if (user) {
@@ -604,270 +590,109 @@ const Dashboard = () => {
               />
             </div>
 
-            {/* Active Scenarios */}
-            <div className="rounded-lg border bg-card p-4">
-              <div className="flex items-center justify-between mb-3">
-                <SectionLabel prefix="◆">Active Scenarios</SectionLabel>
-                <Link to="/scenarios/new" className="font-mono-stat text-[10px] text-primary hover:underline">+ New</Link>
-              </div>
-              {activeScenarios.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-sm text-muted-foreground font-body">No active scenarios yet.</p>
-                  <Button asChild className="mt-3 font-cinzel tracking-wider glow-accent" size="sm">
-                    <Link to="/scenarios/new">Create Your First Scenario</Link>
+            {/* Main focus card */}
+            <div className="mb-4 max-w-[680px]">
+              {focusMode === "disaster" ? (
+                <DisasterFocusCard />
+              ) : focusScenario ? (
+                <ScenarioFocusCard scenario={focusScenario} />
+              ) : (
+                <div className="prototype-focus-card flex min-h-[280px] flex-col items-center justify-center rounded-[20px] border-[1.5px] border-dashed border-border bg-[hsl(var(--card)/0.5)] p-8 text-center">
+                  <p className="mb-3 font-body text-sm text-muted-foreground">No active {t("scenario").toLowerCase()}.</p>
+                  <Button asChild size="sm" className="font-cinzel tracking-wider glow-accent">
+                    <Link to="/scenarios/new">Create Your First {t("scenario")}</Link>
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {activeScenarios.map((s) => (
-                    <Link
-                      key={s.id}
-                      to={`/scenarios/${s.id}`}
-                      className="flex items-center justify-between p-3 rounded border bg-secondary/30 hover:bg-secondary/50 transition-all group"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-body text-sm truncate group-hover:text-primary transition-colors">
-                          {((s as any).regression_count ?? 0) > 0 && <span className="text-purple-400 mr-1">↺</span>}
-                          {s.title}
-                        </p>
-                        <span className="font-mono-stat text-[9px] text-muted-foreground uppercase">{s.category}</span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {((s as any).xp_multiplier ?? 1) > 1 && (
-                          <span className="font-mono-stat text-[9px] text-purple-400">{Number((s as any).xp_multiplier).toFixed(1)}x</span>
-                        )}
-                        <span className="font-mono-stat text-[10px] text-primary">+{s.xp_reward} XP</span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
               )}
             </div>
 
-            {/* Morning Musts */}
-            <div className="rounded-lg border bg-card p-4">
-              <SectionLabel prefix="✦">Morning Musts</SectionLabel>
-              {musts.length === 0 ? (
-                <p className="text-sm text-muted-foreground mt-2 font-body">No morning musts set. Add them in onboarding.</p>
-              ) : (
-                <div className="space-y-2 mt-3">
-                  {musts.map((m) => {
-                    const isDone = completions.some((c) => c.must_id === m.id);
+            {/* Other active scenarios */}
+            {otherScenarios.length > 0 && (
+              <div className="mb-4 max-w-[680px]">
+                <div className="mb-2.5 font-mono-stat text-[9px] tracking-wider text-muted-foreground">
+                  OTHER ACTIVE {t("scenario").toUpperCase()}S
+                </div>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {otherScenarios.map((s) => {
+                    const catColor =
+                      s.category === "Academic"
+                        ? "hsl(var(--theme-blue))"
+                        : s.category === "Career"
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--theme-green))";
                     return (
-                      <button
-                        key={m.id}
-                        onClick={() => toggleMust(m.id)}
-                        className={`w-full flex items-center gap-3 p-2 rounded transition-all text-left ${
-                          isDone ? "bg-secondary/50" : "hover:bg-secondary/30"
-                        }`}
+                      <Link
+                        key={s.id}
+                        to={`/scenarios/${s.id}`}
+                        className="rounded-r-xl border border-border bg-[hsl(var(--card)/0.75)] p-3.5 transition-colors hover:border-primary/30"
+                        style={{ borderLeft: `3px solid ${catColor}` }}
                       >
-                        <div
-                          className="h-4 w-4 rounded border-2 shrink-0 flex items-center justify-center transition-all"
-                          style={{
-                            borderColor: isDone ? "hsl(var(--primary))" : "hsl(var(--border))",
-                            background: isDone ? "hsl(var(--primary))" : "transparent",
-                          }}
-                        >
-                          {isDone && <span className="text-[10px] text-primary-foreground">✓</span>}
+                        <div className="mb-1.5 flex justify-between">
+                          <TagChip color={catColor}>{s.category}</TagChip>
+                          <span className="font-mono-stat text-[9px] text-muted-foreground">+{s.xp_reward} {t("xp")}</span>
                         </div>
-                        <span className={`font-body text-sm transition-all ${isDone ? "line-through text-muted-foreground" : ""}`}>
-                          {m.text}
-                        </span>
-                      </button>
+                        <div className="font-cinzel text-[13px] font-semibold text-foreground">{s.title}</div>
+                      </Link>
                     );
                   })}
-                  <div className="text-right mt-1">
-                    <span className="font-mono-stat text-[10px] text-muted-foreground">
-                      {completions.length}/{musts.length} complete
-                    </span>
-                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* XP Streak Graph */}
-            <div className="rounded-lg border bg-card p-4">
-              <SectionLabel prefix="◆">XP · Last 30 Days</SectionLabel>
-              <div className="h-40 mt-3">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={xpChartData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-                    <defs>
-                      <linearGradient id="xpGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={{ stroke: "hsl(var(--border))" }}
-                      tickLine={false}
-                      interval={6}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "0.5rem",
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: "11px",
-                      }}
-                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                      itemStyle={{ color: "hsl(var(--primary))" }}
-                      formatter={(value: number) => [`${value} XP`, "Earned"]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="xp"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      fill="url(#xpGradient)"
-                      dot={false}
-                      activeDot={{ r: 4, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))", strokeWidth: 2 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Right Column */}
-          <div className="w-full md:w-[240px] shrink-0 space-y-4">
-            {/* XP Card */}
-            <div className="rounded-lg border bg-card p-4 text-center">
-              <SectionLabel prefix="◆">Experience</SectionLabel>
-              <div className="font-cinzel text-3xl font-bold text-primary mt-2">
-                {profile.total_xp ?? 0}
-              </div>
-              <div className="font-mono-stat text-[10px] text-muted-foreground mb-2">TOTAL XP</div>
-              <GlowingProgress value={(profile.total_xp ?? 0) % xpForLevel} max={xpForLevel} />
-              <div className="font-mono-stat text-[10px] text-muted-foreground mt-1">
-                {(profile.total_xp ?? 0) % xpForLevel} / {xpForLevel} to next level
-              </div>
-            </div>
-
-            {/* Daily XP */}
-            <div className="rounded-lg border bg-card p-4 text-center">
-              <SectionLabel prefix="✦">Daily XP</SectionLabel>
-              <div className="font-mono-stat text-lg font-bold mt-2">
-                {profile.daily_xp_today ?? 0} / {profile.daily_xp_target ?? 10}
-              </div>
-              <GlowingProgress value={profile.daily_xp_today ?? 0} max={profile.daily_xp_target ?? 10} height="h-1.5" />
-            </div>
-
-            {/* Habits */}
-            <div className="rounded-lg border bg-card p-4">
-              <SectionLabel prefix="◈">Habits</SectionLabel>
-              {habits.length === 0 ? (
-                <p className="font-body text-xs text-muted-foreground mt-2">No habits tracked yet.</p>
-              ) : (
-                <div className="space-y-2 mt-3">
-                  {habits.map((h) => (
-                    <div key={h.id} className="flex items-center justify-between">
-                      <span className="font-body text-xs truncate">{h.label}</span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-sm">🔥</span>
-                        <span className="font-mono-stat text-[10px] text-primary">{h.current_streak ?? 0}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Level Milestones */}
-            <div className="rounded-lg border bg-card p-4">
-              <SectionLabel prefix="◈">Milestones</SectionLabel>
-              <div className="space-y-2 mt-3">
-                {[5, 10, 15, 20, 25, 30].map((lv) => (
-                  <div key={lv} className="flex items-center gap-2">
-                    <span className={`text-sm ${(profile.level ?? 1) >= lv ? "text-primary" : "text-muted-foreground"}`}>
-                      {(profile.level ?? 1) >= lv ? "★" : "☆"}
-                    </span>
-                    <span className="font-mono-stat text-[10px]">LV {lv}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Shadow Self Widget */}
-            <ShadowSelfWidget />
-            {isSoloLeveling && <ShadowArmyWidget />}
-
-            {/* Dream Board Widget */}
-            {isFeatureUnlocked('/dream-board', profile.level ?? 1) && <DreamBoardWidget />}
-
-            {/* Active Duels */}
-            <DuelWidget />
-
-            {/* Party Widget */}
-            <PartyWidget />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowPartyCreate(true)}
-              className="w-full font-mono-stat text-[9px]"
-            >
-              ◆ Create Party
-            </Button>
-
-            {/* Regression Callout for 0 regressions */}
-            {(profile.regression_count ?? 0) === 0 && <RegressionCallout />}
-
-            {/* Prestige Button */}
-            {(profile.level ?? 1) >= 10 && (
-              <button
-                onClick={() => setShowPrestige(true)}
-                className="w-full rounded-lg border p-3 text-center font-mono-stat text-[10px] uppercase tracking-wider transition-all hover:border-purple-500/50 text-purple-400"
-                style={{ borderColor: 'hsl(270 70% 55% / 0.2)', background: 'hsl(270 70% 55% / 0.05)' }}
+            {/* Life path preview */}
+            {lifePathPreview && isFeatureUnlocked("/life-path", profile.level ?? 1) && (
+              <Link
+                to="/life-path"
+                className="mb-4 block max-w-[680px] rounded-xl border border-border bg-[hsl(var(--card)/0.75)] p-4 transition-colors hover:border-primary/30"
               >
-                ↺ Prestige Available
-              </button>
+                <SectionLabel>{t("life_path")}</SectionLabel>
+                <div className="mt-1 font-cinzel text-[13px] font-bold text-primary">{lifePathPreview.pathTitle}</div>
+                <div className="mb-2.5 font-body text-[10px] italic text-muted-foreground">{lifePathPreview.arcTitle}</div>
+                <GlowingProgress value={lifePathPreview.progress} max={100} height="h-1.5" />
+                <div className="mt-1 flex justify-between">
+                  <span className="font-mono-stat text-[9px] text-muted-foreground">{lifePathPreview.progress}% complete</span>
+                  <span className="font-mono-stat text-[9px] text-primary">Path Alignment: {lifePathPreview.alignment}%</span>
+                </div>
+              </Link>
             )}
 
-            {/* Life Path Widget */}
-            {isFeatureUnlocked('/life-path', profile.level ?? 1) && <LifePathWidget />}
-
-            {isFeatureUnlocked('/constellation-dashboard', profile.level ?? 1) && (
-              <>
-                <PendingConstellationScenarios />
-                <PendingNebulaInvites />
-                <ConstellationWidget />
-              </>
-            )}
+            <DemonEncounterTrigger />
           </div>
+
+          <DashboardRightPanel
+            musts={musts}
+            completions={completions}
+            onToggleMust={toggleMust}
+            stats={stats}
+            statLabels={statShort}
+            vitals={vitals.map((v) => ({ label: v.label, value: v.value, color: v.color }))}
+            pathTitle={lifePathPreview?.pathTitle}
+            arcTitle={lifePathPreview?.arcTitle}
+            pathProgress={lifePathPreview?.progress}
+            pathAlignment={lifePathPreview?.alignment}
+          />
         </div>
       </div>
 
-      {/* Character Visit Overlay */}
       <CharacterVisitTrigger />
-
-      {/* Demon Encounter Overlay */}
-      <DemonEncounterTrigger />
-
       <WhatDoINowButton />
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur-sm z-50">
+      {/* Mobile bottom nav */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-[hsl(var(--surface)/0.95)] backdrop-blur-sm md:hidden">
         <div className="flex justify-around py-2">
           {[
-            { label: "Home", path: "/dashboard", icon: "🏠" },
-            { label: "Quests", path: "/scenarios", icon: "⚔️" },
-            { label: "Stats", path: "/stats", icon: "📊" },
-            { label: "Lobby", path: "/lobby", icon: "🏛️" },
-          ].map((t) => (
+            { label: "Home", path: "/dashboard", icon: "⬡" },
+            { label: t("scenario"), path: "/scenarios", icon: "◇" },
+            { label: "Stats", path: "/stats", icon: "◈" },
+            { label: "Lobby", path: "/lobby", icon: "⊕" },
+          ].map((item) => (
             <Link
-              key={t.path}
-              to={t.path}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground hover:text-primary transition-colors"
+              key={item.path}
+              to={item.path}
+              className="flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground transition-colors hover:text-primary"
             >
-              <span className="text-lg">{t.icon}</span>
-              <span className="font-mono-stat text-[9px] uppercase">{t.label}</span>
+              <span className="text-lg">{item.icon}</span>
+              <span className="font-mono-stat text-[9px] uppercase">{item.label}</span>
             </Link>
           ))}
         </div>

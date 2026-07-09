@@ -80,6 +80,20 @@ npm run test      # run tests
 
 ---
 
+## Project layout
+
+```
+scenario/
+├── config/          # vite, tailwind, eslint, tsconfig, shadcn
+├── public/          # static assets
+├── src/             # app source
+├── index.html       # entry HTML
+├── package.json
+└── tsconfig.json    # points at config/
+```
+
+---
+
 ## License
 
 MIT

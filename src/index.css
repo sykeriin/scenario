@@ -207,4 +207,13 @@
     background: linear-gradient(90deg, hsl(45 80% 50% / 0.08), transparent);
     border-left: 2px solid hsl(45 80% 50% / 0.5);
   }
+
+  .prototype-shell ::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  .prototype-shell ::-webkit-scrollbar-thumb {
+    background: hsl(var(--dim));
+    border-radius: 2px;
+  }
 }

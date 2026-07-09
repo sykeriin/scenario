@@ -28,6 +28,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Lockfiles (npm only)
+bun.lockb
+
 # Design docs & prototypes (local only)
 *.docx
 docs/
