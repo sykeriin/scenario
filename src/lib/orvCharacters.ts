@@ -1,0 +1,196 @@
+export interface OrvCharacter {
+  name: string;
+  title: string;
+  icon: string;
+  colorPrimary: string; // HSL values
+  colorSecondary: string;
+  voiceDescription: string;
+  triggerConditions: string[];
+  visitTypes: string[];
+  rarity: "common" | "uncommon" | "rare" | "legendary";
+  isVillain: boolean;
+}
+
+export const ORV_CHARACTERS: OrvCharacter[] = [
+  // ═══════════ HEROES ═══════════
+  {
+    name: "Kim Dokja",
+    title: "The One Who Reads Alone",
+    icon: "📖",
+    colorPrimary: "220 60% 35%",
+    colorSecondary: "0 0% 80%",
+    voiceDescription: "Self-deprecating, surprisingly warm, references reading and stories. Occasionally fourth-wall aware — he knows he's in a story. Never preachy. Speaks like someone who has been through despair and came out the other side with a quiet smile.",
+    triggerConditions: ["low_mood_inactive", "regression", "life_path_start", "first_login"],
+    visitTypes: ["comfort", "advice"],
+    rarity: "uncommon",
+    isVillain: false,
+  },
+  {
+    name: "Yoo Joonghyuk",
+    title: "The Supreme King",
+    icon: "⚔️",
+    colorPrimary: "0 0% 10%",
+    colorSecondary: "0 0% 90%",
+    voiceDescription: "Cold, direct, no comfort — only results. Brutally honest. Never praises unnecessarily. Speaks in short, cutting sentences. If the user completed his challenge, he gives a single nod of acknowledgment — no words, just the nod.",
+    triggerConditions: ["low_physical", "no_exercise_7d", "duel_loss"],
+    visitTypes: ["challenge"],
+    rarity: "uncommon",
+    isVillain: false,
+  },
+  {
+    name: "Han Sooyoung",
+    title: "The Author",
+    icon: "✒️",
+    colorPrimary: "0 70% 40%",
+    colorSecondary: "0 0% 95%",
+    voiceDescription: "Sardonic, clever, slightly chaotic. Clearly the smartest person in the room and knows it. Mocks gently but always offers genuinely good strategic advice. Speaks like someone writing a better version of your story.",
+    triggerConditions: ["deadline_approaching", "life_path_recalibrated", "creative_quests"],
+    visitTypes: ["advice", "warning"],
+    rarity: "rare",
+    isVillain: false,
+  },
+  {
+    name: "Lee Hyunsung",
+    title: "The Loyal Shield",
+    icon: "🛡️",
+    colorPrimary: "140 50% 40%",
+    colorSecondary: "45 80% 55%",
+    voiceDescription: "Earnest, warm, military-precise. Genuinely believes in people. Speaks like a loyal companion who will stand beside you no matter what. Uses words like 'mission' and 'duty' naturally.",
+    triggerConditions: ["hard_scenario_complete", "streak_milestone", "consistency_struggle"],
+    visitTypes: ["comfort", "advice"],
+    rarity: "common",
+    isVillain: false,
+  },
+  {
+    name: "Jung Heewon",
+    title: "The Blade of Focus",
+    icon: "🗡️",
+    colorPrimary: "0 65% 45%",
+    colorSecondary: "210 10% 60%",
+    voiceDescription: "No-nonsense, slightly impatient, cuts through noise. Speaks like someone who respects action over words. A warrior pragmatist who tells you what you need to hear, not what you want to hear.",
+    triggerConditions: ["too_many_scenarios", "not_finishing"],
+    visitTypes: ["advice", "warning"],
+    rarity: "common",
+    isVillain: false,
+  },
+  {
+    name: "Shin Yoosung",
+    title: "The Young Prodigy",
+    icon: "🌟",
+    colorPrimary: "45 80% 55%",
+    colorSecondary: "30 30% 95%",
+    voiceDescription: "Bright, genuinely excited, unexpectedly wise sometimes. Makes difficult things feel possible. Uses honorifics (Unnie/Oppa). Speaks with youthful energy but flashes of surprising depth.",
+    triggerConditions: ["academic_scenarios", "first_title", "first_channel_join"],
+    visitTypes: ["comfort", "advice"],
+    rarity: "common",
+    isVillain: false,
+  },
+  {
+    name: "Lee Gilyoung",
+    title: "The Bug King",
+    icon: "🐛",
+    colorPrimary: "150 50% 35%",
+    colorSecondary: "210 60% 50%",
+    voiceDescription: "Quiet, analytical, occasionally shows flashes of unexpected depth. Speaks like a young strategist who sees patterns others miss. Direct but not cold — more like focused.",
+    triggerConditions: ["technical_quests", "skill_tree_progress", "intel_stat_high"],
+    visitTypes: ["advice"],
+    rarity: "common",
+    isVillain: false,
+  },
+  // ═══════════ VILLAINS / ANTAGONISTS ═══════════
+  {
+    name: "Myung Ilsang",
+    title: "The Secretive Plotter",
+    icon: "🎭",
+    colorPrimary: "270 40% 15%",
+    colorSecondary: "270 60% 60%",
+    voiceDescription: "Cryptic, omniscient, speaks in riddles wrapped in prophecies. Every sentence sounds like it contains a hidden meaning. Never gives straight answers — only questions that haunt you. Speaks with ancient authority.",
+    triggerConditions: ["crossroads", "multiple_paths", "high_level"],
+    visitTypes: ["prophecy"],
+    rarity: "rare",
+    isVillain: true,
+  },
+  {
+    name: "Duke of Loyalty and Betrayal",
+    title: "The Broken Oath",
+    icon: "💀",
+    colorPrimary: "0 80% 30%",
+    colorSecondary: "0 0% 10%",
+    voiceDescription: "Speaks in a voice dripping with bitter disappointment. Every word is an accusation. References loyalty, oaths, and the weight of promises broken. Dark, theatrical, deeply personal.",
+    triggerConditions: ["streak_broken", "scenario_abandoned", "commitment_failed"],
+    visitTypes: ["taunt", "warning"],
+    rarity: "uncommon",
+    isVillain: true,
+  },
+  {
+    name: "Apocalypse Dragon",
+    title: "The World Ender",
+    icon: "🐉",
+    colorPrimary: "20 90% 45%",
+    colorSecondary: "0 0% 30%",
+    voiceDescription: "Roars with primordial contempt. Speaks in short, devastating declarations. Views the user as an insect. Every sentence is a threat or a mockery of human ambition. Pure overwhelming force.",
+    triggerConditions: ["disaster_active", "multiple_disasters", "low_hp"],
+    visitTypes: ["taunt"],
+    rarity: "uncommon",
+    isVillain: true,
+  },
+  {
+    name: "The Oldest Dream",
+    title: "The End of All Stories",
+    icon: "◈",
+    colorPrimary: "0 0% 95%",
+    colorSecondary: "0 0% 5%",
+    voiceDescription: "Ethereal, alien, speaks as if from outside reality itself. Words feel like they're dissolving as you read them. References endings, entropy, and the futility of stories — but with a strange tenderness. Ultra-rare and deeply unsettling.",
+    triggerConditions: ["level_30_plus", "outer_god_grade"],
+    visitTypes: ["prophecy"],
+    rarity: "legendary",
+    isVillain: true,
+  },
+  {
+    name: "Dionysus",
+    title: "The God of Wine and Ecstasy",
+    icon: "🍷",
+    colorPrimary: "280 50% 35%",
+    colorSecondary: "45 80% 55%",
+    voiceDescription: "Chaotic, celebratory, hedonistic. Speaks like someone throwing a party at the end of the world. Encourages creativity and excess in equal measure. Alternates between wisdom and absurdity.",
+    triggerConditions: ["creative_quest_complete", "craft_stat_high", "artistic_scenario"],
+    visitTypes: ["comfort", "advice"],
+    rarity: "rare",
+    isVillain: true,
+  },
+  {
+    name: "Uriel",
+    title: "The Flame of Judgment",
+    icon: "🔥",
+    colorPrimary: "45 90% 50%",
+    colorSecondary: "0 0% 100%",
+    voiceDescription: "Stern, celestial, righteous. Speaks with the authority of divine law. Not cruel but absolutely uncompromising. References flames, judgment, and the gap between potential and performance. Burns away excuses.",
+    triggerConditions: ["stats_declining", "low_motivation", "missed_deadlines"],
+    visitTypes: ["warning", "challenge"],
+    rarity: "rare",
+    isVillain: true,
+  },
+  {
+    name: "Secretive Plotter",
+    title: "The Shadow of the Reader",
+    icon: "🌑",
+    colorPrimary: "220 40% 20%",
+    colorSecondary: "0 0% 75%",
+    voiceDescription: "Meta-aware, speaks as if he's read the user's entire story. References 'the reader' and 'this story' directly. Melancholic but purposeful. Every word carries the weight of someone who has seen every possible ending. An alternate Kim Dokja who has lived too long.",
+    triggerConditions: ["meta_milestone", "novel_chapter_generated", "high_level"],
+    visitTypes: ["prophecy", "advice"],
+    rarity: "legendary",
+    isVillain: true,
+  },
+];
+
+export function getCharacterByName(name: string): OrvCharacter | undefined {
+  return ORV_CHARACTERS.find((c) => c.name === name);
+}
+
+export const RARITY_WEIGHTS: Record<string, number> = {
+  common: 40,
+  uncommon: 25,
+  rare: 10,
+  legendary: 3,
+};
