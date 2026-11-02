@@ -4,7 +4,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { GlowingProgress } from "@/components/ui/GlowingProgress";
 import { StatRadar } from "@/components/dashboard/StatRadar";
 import { useUniverse } from "@/hooks/useUniverse";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Tables } from "@/types/database";
 
 type MorningMust = Tables<"morning_musts">;
 type MustCompletion = Tables<"must_completions">;

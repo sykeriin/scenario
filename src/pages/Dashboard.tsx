@@ -31,8 +31,9 @@ import { PenaltyZoneOverlay } from "@/components/sl/PenaltyZoneOverlay";
 import { ShadowArmyWidget } from "@/components/sl/ShadowArmyWidget";
 import { useSoloLeveling } from "@/hooks/useSoloLeveling";
 import type { Tables } from "@/types/database";
+import type { ProfileExtensions } from "@/integrations/local/schema-extensions";
 
-type Profile = Tables<"profiles">;
+type Profile = Tables<"profiles"> & ProfileExtensions;
 type Scenario = Tables<"scenarios">;
 type MorningMust = Tables<"morning_musts">;
 type MustCompletion = Tables<"must_completions">;
@@ -94,7 +95,7 @@ const Dashboard = () => {
       setXpLogs(xpRes.data ?? []);
       setTodayPomodoros(pomodoroRes.data?.length ?? 0);
       setHasLoggedMood((moodRes.data?.length ?? 0) > 0);
-      const disasters = disasterRes.data as { id: string; title: string; hp?: number }[] | null;
+      const disasters = disasterRes.data as unknown as { id: string; title: string; hp?: number }[] | null;
       if (disasters?.[0]) setActiveDisaster(disasters[0]);
 
       const scenarioList = scenariosRes.data ?? [];
@@ -124,7 +125,7 @@ const Dashboard = () => {
     const ch = dataClient
       .channel("profile-xp")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, (payload) => {
-        if (payload.new?.id === user.id) setProfile(payload.new as Profile);
+        if (payload.new?.id === user.id) setProfile(payload.new as unknown as Profile);
       })
       .subscribe();
     return () => ch.unsubscribe();
@@ -150,7 +151,7 @@ const Dashboard = () => {
         setLifePathPreview({
           pathTitle: path.title,
           arcTitle: activeArc?.title ?? "",
-          progress: activeArc?.progress_pct ?? 0,
+          progress: (activeArc as { progress_pct?: number } | undefined)?.progress_pct ?? 0,
           alignment: 78,
         });
       });

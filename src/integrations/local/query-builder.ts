@@ -1,7 +1,23 @@
 import { db, ensureSeeded, getTable } from './db';
 import { emitRealtime } from './realtime';
+import type { Database } from '@/types/database';
+import type { ProfileExtensions } from './schema-extensions';
 
+/** Untyped row used internally by the storage layer. */
 type Row = Record<string, unknown>;
+
+type Tables = Database['public']['Tables'];
+
+/**
+ * Row type for a table. Known tables come from the generated schema types;
+ * local-only tables (see schema-extensions.ts) fall back to a loose record.
+ */
+export type RowOf<T extends string> = T extends 'profiles'
+  ? Tables['profiles']['Row'] & ProfileExtensions
+  : T extends keyof Tables
+    ? Tables[T]['Row']
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    : Record<string, any>;
 
 export interface SupabaseError {
   message: string;
@@ -11,12 +27,26 @@ export interface SupabaseError {
 export interface SupabaseResult<T> {
   data: T;
   error: SupabaseError | null;
+  /** Total matching rows, set when select() is called with { count }. */
+  count?: number | null;
+}
+
+export interface SelectOptions {
+  count?: 'exact' | 'planned' | 'estimated';
+  /** Return only the count, no rows. */
+  head?: boolean;
+}
+
+export interface UpsertOptions {
+  /** Comma-separated columns that identify an existing row to overwrite. */
+  onConflict?: string;
 }
 
 type Filter =
   | { type: 'eq'; col: string; val: unknown }
   | { type: 'neq'; col: string; val: unknown }
   | { type: 'in'; col: string; vals: unknown[] }
+  | { type: 'gt'; col: string; val: unknown }
   | { type: 'gte'; col: string; val: unknown }
   | { type: 'lte'; col: string; val: unknown }
   | { type: 'is'; col: string; val: null }
@@ -43,6 +73,8 @@ function applyFilters(rows: Row[], filters: Filter[]): Row[] {
           return row[f.col] !== f.val;
         case 'in':
           return f.vals.includes(row[f.col]);
+        case 'gt':
+          return (row[f.col] as string | number) > (f.val as string | number);
         case 'gte':
           return (row[f.col] as string | number) >= (f.val as string | number);
         case 'lte':
@@ -73,7 +105,7 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
+class QueryBuilder<R = Row, D = R[]> implements PromiseLike<SupabaseResult<D | null>> {
   private table: string;
   private mode: 'select' | 'insert' | 'update' | 'upsert' | 'delete' = 'select';
   private filters: Filter[] = [];
@@ -81,6 +113,9 @@ class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
   private insertRows: Row[] = [];
   private updatePatch: Row = {};
   private upsertRow: Row = {};
+  private upsertConflict: string[] = [];
+  private wantCount = false;
+  private headOnly = false;
   private orderCol: string | null = null;
   private orderAsc = true;
   private limitN: number | null = null;
@@ -90,7 +125,9 @@ class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
     this.table = table;
   }
 
-  select(cols = '*') {
+  select(cols = '*', opts?: SelectOptions) {
+    this.wantCount = !!opts?.count;
+    this.headOnly = !!opts?.head;
     if (this.mode === 'insert' || this.mode === 'upsert') {
       this.selectCols = cols;
       return this;
@@ -112,9 +149,10 @@ class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
     return this;
   }
 
-  upsert(row: Row) {
+  upsert(row: Row, opts?: UpsertOptions) {
     this.mode = 'upsert';
     this.upsertRow = row;
+    this.upsertConflict = opts?.onConflict?.split(',').map((c) => c.trim()).filter(Boolean) ?? [];
     return this;
   }
 
@@ -135,6 +173,11 @@ class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
 
   in(col: string, vals: unknown[]) {
     this.filters.push({ type: 'in', col, vals });
+    return this;
+  }
+
+  gt(col: string, val: unknown) {
+    this.filters.push({ type: 'gt', col, val });
     return this;
   }
 
@@ -174,21 +217,21 @@ class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
     return this;
   }
 
-  single() {
+  single(): QueryBuilder<R, R> {
     this.singleMode = 'single';
-    return this;
+    return this as unknown as QueryBuilder<R, R>;
   }
 
-  maybeSingle() {
+  maybeSingle(): QueryBuilder<R, R | null> {
     this.singleMode = 'maybeSingle';
-    return this;
+    return this as unknown as QueryBuilder<R, R | null>;
   }
 
-  then<TResult1 = SupabaseResult<Row | Row[] | null>, TResult2 = never>(
-    onfulfilled?: ((value: SupabaseResult<Row | Row[] | null>) => TResult1 | PromiseLike<TResult1>) | null,
+  then<TResult1 = SupabaseResult<D | null>, TResult2 = never>(
+    onfulfilled?: ((value: SupabaseResult<D | null>) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): Promise<TResult1 | TResult2> {
-    return this.execute().then(onfulfilled, onrejected);
+    return (this.execute() as Promise<SupabaseResult<D | null>>).then(onfulfilled, onrejected);
   }
 
   private async execute(): Promise<SupabaseResult<Row | Row[] | null>> {
@@ -216,9 +259,17 @@ class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
       }
 
       if (this.mode === 'upsert') {
+        // Without an explicit id, onConflict columns decide which existing row to overwrite.
+        let existingId: unknown = this.upsertRow.id;
+        if (existingId == null && this.upsertConflict.length > 0) {
+          const match = (await table.toArray()).find((r) =>
+            this.upsertConflict.every((c) => r[c] === this.upsertRow[c])
+          );
+          existingId = match?.id;
+        }
         const row: Row = {
           ...this.upsertRow,
-          id: this.upsertRow.id ?? crypto.randomUUID(),
+          id: existingId ?? crypto.randomUUID(),
           updated_at: nowIso(),
         };
         const old = await table.get(String(row.id));
@@ -266,17 +317,20 @@ class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
           return 0;
         });
       }
+      const total = rows.length;
+      if (this.headOnly) return { data: null, error: null, count: total };
       if (this.limitN != null) rows = rows.slice(0, this.limitN);
       rows = rows.map((r) => pickColumns(r, this.selectCols));
+      const count = this.wantCount ? total : undefined;
 
       if (this.singleMode === 'single') {
         if (rows.length !== 1) return { data: null, error: { message: 'JSON object requested, multiple (or no) rows returned' } };
-        return { data: rows[0], error: null };
+        return { data: rows[0], error: null, count };
       }
       if (this.singleMode === 'maybeSingle') {
-        return { data: rows[0] ?? null, error: null };
+        return { data: rows[0] ?? null, error: null, count };
       }
-      return { data: rows, error: null };
+      return { data: rows, error: null, count };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Query failed';
       return { data: null, error: { message } };
@@ -284,6 +338,6 @@ class QueryBuilder implements PromiseLike<SupabaseResult<Row | Row[] | null>> {
   }
 }
 
-export function from(table: string) {
-  return new QueryBuilder(table);
+export function from<T extends string>(table: T) {
+  return new QueryBuilder<RowOf<T>>(table);
 }

@@ -1,6 +1,6 @@
 import { getAIConfig, isAIReady } from './ai-config';
 import { db, ensureSeeded } from '@/integrations/local/db';
-import { LOCAL_USER_ID } from '@/integrations/local/schema-extensions';
+import { LOCAL_USER_ID, type GameUniverse } from '@/integrations/local/schema-extensions';
 import { from } from '@/integrations/local/query-builder';
 import { addXp } from './xp';
 import { insertScenarioFromAi, insertQuestIntoScenario } from './scenario-insert';
@@ -37,7 +37,9 @@ export async function callAI(
 ): Promise<string> {
   if (!isAIReady()) throw new Error('AI not configured. Add your API key in Settings.');
   const config = getAIConfig();
-  const universe = opts?.universe ?? (await getProfileUniverse());
+  const universe: GameUniverse = opts?.universe
+    ? opts.universe === 'solo_leveling' ? 'solo_leveling' : 'orv'
+    : await getProfileUniverse();
   const wrapped = messages.map((m, i) =>
     i === 0 && m.role === 'system' ? { ...m, content: wrapPrompt(m.content, universe) } : m
   );

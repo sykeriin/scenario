@@ -37,7 +37,7 @@ export const PomodoroGlobal = () => {
       .eq('user_id', LOCAL_USER_ID)
       .neq('status', 'completed')
       .limit(40)
-      .then(({ data }) => setPendingQuests((data as PendingQuest[]) ?? []));
+      .then(({ data }) => setPendingQuests((data as unknown as PendingQuest[]) ?? []));
 
     dataClient
       .from('profiles')

@@ -6,7 +6,7 @@ import { useUniverse } from "@/hooks/useUniverse";
 import { GlowingProgress } from "@/components/ui/GlowingProgress";
 import { TagChip } from "@/components/dashboard/TagChip";
 import { toast } from "sonner";
-import type { Tables } from "@/integrations/dataClient/types";
+import type { Tables } from "@/types/database";
 
 type Scenario = Tables<"scenarios">;
 type Quest = Tables<"quests">;
@@ -124,9 +124,9 @@ export function ScenarioFocusCard({ scenario }: ScenarioFocusCardProps) {
 
       <div className="relative mb-5">
         <h2 className="font-cinzel text-[22px] font-bold leading-snug text-foreground">{scenario.title}</h2>
-        {scenario.description && (
+        {(scenario as { description?: string | null }).description && (
           <p className="mt-1.5 font-body text-xs italic leading-relaxed text-muted-foreground">
-            {scenario.description}
+            {(scenario as { description?: string | null }).description}
           </p>
         )}
       </div>

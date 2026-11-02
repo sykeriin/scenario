@@ -2,12 +2,14 @@ import { from } from './query-builder';
 import { localAuth } from './auth';
 import { createChannel } from './realtime';
 import { executeRpc } from './rpc';
+import { localStorageApi } from './storage';
 import { invokeFunction } from '@/lib/ai';
 
 export const localClient = {
   from,
   auth: localAuth,
   channel: createChannel,
+  storage: localStorageApi,
   rpc: async (name: string, args?: Record<string, unknown>) => {
     const result = await executeRpc(name, args ?? {});
     return result;

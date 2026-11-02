@@ -14,7 +14,7 @@ export function WhatDoINowButton() {
         'what-now'
       );
       if (res.action?.action === 'get_plan' && res.action.confirm_required) {
-        const plan = await api.chat.executeAction('get_plan', res.action.params ?? {});
+        const plan = await api.chat.executeAction('get_plan', (res.action.params ?? {}) as Record<string, unknown>);
         setBrief((plan as { message?: string }).message ?? res.message);
       } else {
         setBrief(res.message);

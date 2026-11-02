@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { dataClient } from "@/lib/data-client";
 import { useUniverse } from "@/hooks/useUniverse";
+import { SystemMessage } from "@/components/ui/SystemMessage";
 import { UniverseNotification } from "@/components/UniverseNotification";
 import { getMonarchName } from "@/lib/solo-leveling/monarch-types";
 import { DEMON_DOMAIN_META, type DemonEncounter } from "@/lib/demonTypes";
