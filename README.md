@@ -84,13 +84,17 @@ npm run test      # run tests
 
 ```
 scenario/
-├── config/          # vite, tailwind, eslint, tsconfig, shadcn
-├── public/          # static assets
-├── src/             # app source
-├── index.html       # entry HTML
+├── config/          ← tailwind, postcss, eslint, tsconfig, shadcn
+├── public/
+├── src/
+├── index.html
 ├── package.json
-└── tsconfig.json    # points at config/
+├── vite.config.ts   ← local only (auto-generated, gitignored)
+├── vitest.config.ts ← local only (auto-generated, gitignored)
+└── tsconfig.json
 ```
+
+Vite/Vitest only auto-load from the project root. Run `npm install` once to generate the two local entry files — real settings stay in `config/`.
 
 ---
 

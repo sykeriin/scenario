@@ -1,16 +1,14 @@
 # Config
 
-Tooling configuration for SCENARIO. Kept out of the project root to reduce clutter.
+All tooling settings live here. The root keeps **two local entry points** (`vite.config.ts`, `vitest.config.ts`) that are gitignored and auto-created by `npm install` — Vite/Vitest only discover config at the project root.
 
-| File | Purpose |
-|------|---------|
+| File | Tool |
+|------|------|
 | `vite.config.ts` | Dev server, build, PWA |
-| `vitest.config.ts` | Unit tests |
-| `tailwind.config.ts` | Tailwind theme & animations |
-| `postcss.config.js` | Tailwind + Autoprefixer pipeline |
+| `vitest.config.ts` | Tests |
+| `tailwind.config.ts` | Theme & utilities |
+| `postcss.config.js` | CSS pipeline |
 | `eslint.config.js` | Lint rules |
-| `components.json` | shadcn/ui CLI paths |
-| `tsconfig.app.json` | TypeScript — app (`src/`) |
-| `tsconfig.node.json` | TypeScript — config files |
-
-Root `tsconfig.json` only points here. `package.json` scripts pass `--config` paths.
+| `components.json` | shadcn/ui CLI |
+| `tsconfig.app.json` | TypeScript — `src/` |
+| `tsconfig.node.json` | TypeScript — configs |
