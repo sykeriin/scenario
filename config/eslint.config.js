@@ -21,6 +21,9 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Legacy debt (~175 uses, mostly the local data layer). Tracked as warnings
+      // so new code is nudged away from `any` without blocking CI.
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 );

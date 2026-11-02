@@ -80,7 +80,9 @@ const ScenarioNew = () => {
           const a = board.ai_analysis as Record<string, unknown>;
           if (Array.isArray(a.dominant_themes)) dreamBoardThemes = a.dominant_themes as string[];
         }
-      } catch {}
+      } catch {
+        // Dream board analysis is optional context; ignore failures.
+      }
 
       const { data, error } = await dataClient.functions.invoke("generate-scenario", {
         body: { type: "scenario", category, deadline, content, dreamBoardThemes },

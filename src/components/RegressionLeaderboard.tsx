@@ -28,7 +28,7 @@ export const RegressionLeaderboard = () => {
       const list = profiles ?? [];
       const userIds = list.map((p) => p.id);
 
-      let scenarioMap: Record<string, string> = {};
+      const scenarioMap: Record<string, string> = {};
 
       if (userIds.length > 0) {
         // Get the most regressed scenario per user
