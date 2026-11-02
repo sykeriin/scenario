@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUniverse } from '@/hooks/useUniverse';
-import { PRIMARY_NAV, MORE_NAV, type NavItem } from '@/lib/nav-config';
+import { TAB_NAV, visibleMoreNav, type NavItem } from '@/lib/nav-config';
 import { isFeatureUnlocked, unlockLabel, minLevelForPath } from '@/lib/unlocks';
 import {
   DropdownMenu,
@@ -25,17 +25,17 @@ export function DashboardNav({ level, founderMode }: DashboardNavProps) {
   const { t } = useUniverse();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const visibleMore = MORE_NAV.filter((item) => !item.founderOnly || founderMode);
+  const visibleMore = visibleMoreNav(founderMode);
 
   return (
     <div className="hidden md:flex items-center gap-1">
-      {PRIMARY_NAV.map((item) => (
+      {TAB_NAV.map((item) => (
         <Link
           key={item.path}
           to={item.path}
           className="font-mono-stat text-[11px] uppercase tracking-wider px-3 py-2 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
         >
-          {item.icon ? `${item.icon} ` : ''}{labelFor(item, t)}
+          {item.label}
         </Link>
       ))}
       <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>

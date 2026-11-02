@@ -1,3 +1,4 @@
+import { BottomTabBar } from '@/components/layout/BottomTabBar';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,7 +9,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PomodoroProvider } from "@/contexts/PomodoroContext";
 import { SystemChat } from "@/components/SystemChat";
 import { PomodoroGlobal } from "@/components/PomodoroGlobal";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { dataClient } from "@/lib/data-client";
 import { LOCAL_USER_ID } from "@/integrations/local/schema-extensions";
 import { getAIConfig } from "@/lib/ai-config";
@@ -58,9 +59,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  // Once onboarding is known to be complete it never un-completes, so stop re-checking.
+  const onboardingDone = useRef(false);
 
   useEffect(() => {
-    if (!user || loading) return;
+    if (!user || loading || onboardingDone.current) return;
     let cancelled = false;
     setCheckingOnboarding(true);
     ensureSeeded()
@@ -74,6 +77,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       .then(({ data, error }) => {
         if (cancelled) return;
         const done = !error && data?.onboarding_completed === true;
+        onboardingDone.current = done;
         setNeedsOnboarding(!done);
         setCheckingOnboarding(false);
       })
@@ -83,7 +87,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user, loading]);
+  // pathname: ProtectedRoute instances are reused across routes, so re-check after
+  // navigating (e.g. /onboarding -> /dashboard) instead of trusting a stale result.
+  }, [user, loading, location.pathname]);
 
   if (loading || checkingOnboarding) {
     return (
@@ -96,7 +102,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (needsOnboarding && !location.pathname.startsWith('/onboarding')) {
     return <Navigate to="/onboarding" replace />;
   }
-  return <>{children}</>;
+  const showTabs = !location.pathname.startsWith('/onboarding');
+  return (
+    <>
+      <div className={showTabs ? 'pb-16 md:pb-0' : undefined}>{children}</div>
+      {showTabs && <BottomTabBar />}
+    </>
+  );
 }
 
 const AppRoutes = () => (

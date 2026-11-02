@@ -678,26 +678,6 @@ const Dashboard = () => {
       <CharacterVisitTrigger />
       <WhatDoINowButton />
 
-      {/* Mobile bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-[hsl(var(--surface)/0.95)] backdrop-blur-sm md:hidden">
-        <div className="flex justify-around py-2">
-          {[
-            { label: "Home", path: "/dashboard", icon: "⬡" },
-            { label: t("scenario"), path: "/scenarios", icon: "◇" },
-            { label: "Stats", path: "/stats", icon: "◈" },
-            { label: "Lobby", path: "/lobby", icon: "⊕" },
-          ].map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground transition-colors hover:text-primary"
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="font-mono-stat text-[9px] uppercase">{item.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };

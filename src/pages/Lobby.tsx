@@ -416,25 +416,6 @@ const Lobby = () => {
         )}
       </div>
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur-sm z-50">
-        <div className="flex justify-around py-2">
-          {[
-            { label: "Home", path: "/dashboard", icon: "🏠" },
-            { label: "Quests", path: "/scenarios", icon: "⚔️" },
-            { label: "Stats", path: "/stats", icon: "📊" },
-            { label: "Lobby", path: "/lobby", icon: "🏛️" },
-          ].map((t) => (
-            <Link
-              key={t.path}
-              to={t.path}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <span className="text-lg">{t.icon}</span>
-              <span className="font-mono-stat text-[9px] uppercase">{t.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
