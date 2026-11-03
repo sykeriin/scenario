@@ -21,6 +21,16 @@ export default {
     },
     extend: {
       colors: {
+        ledger: {
+          ground: "rgb(var(--l-ground) / <alpha-value>)",
+          "ground-2": "rgb(var(--l-ground-2) / <alpha-value>)",
+          line: "rgb(var(--l-line) / <alpha-value>)",
+          paper: "rgb(var(--l-paper) / <alpha-value>)",
+          ink: "rgb(var(--l-ink) / <alpha-value>)",
+          stamp: "rgb(var(--l-stamp) / <alpha-value>)",
+          faded: "rgb(var(--l-faded) / <alpha-value>)",
+          foil: "rgb(var(--l-foil) / <alpha-value>)",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -64,6 +74,11 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      fontFamily: {
+        "ledger-serif": ['"Fraunces Variable"', "Georgia", "serif"],
+        "ledger-mono": ['"IBM Plex Mono"', "ui-monospace", "monospace"],
+        "ledger-ui": ['"Figtree Variable"', "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

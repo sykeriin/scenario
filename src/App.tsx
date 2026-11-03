@@ -51,6 +51,7 @@ import Settings from "./pages/Settings";
 import ShadowArmy from "./pages/ShadowArmy";
 import FounderResearch from "./pages/FounderResearch";
 import NotFound from "./pages/NotFound";
+import DesignLab from "./pages/DesignLab";
 
 const queryClient = new QueryClient();
 
@@ -145,6 +146,7 @@ const AppRoutes = () => (
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
     <Route path="/shadow-army" element={<ProtectedRoute><ShadowArmy /></ProtectedRoute>} />
     <Route path="/research" element={<ProtectedRoute><FounderResearch /></ProtectedRoute>} />
+    {import.meta.env.DEV && <Route path="/design" element={<DesignLab />} />}
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

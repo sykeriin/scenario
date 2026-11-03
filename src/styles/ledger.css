@@ -1,0 +1,92 @@
+/*
+ * Ledger design system. Tokens are scoped to `.ledger` so screens can migrate one at a time
+ * without restyling pages that still use the old theme. Colours are RGB triplets so Tailwind
+ * opacity modifiers work (e.g. bg-ledger-paper/60).
+ */
+@import "@fontsource-variable/fraunces/index.css";
+@import "@fontsource-variable/figtree/index.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+.ledger {
+  --l-ground: 26 23 18;
+  --l-ground-2: 36 32 25;
+  --l-line: 58 52 42;
+  --l-paper: 239 231 211;
+  --l-ink: 34 30 23;
+  --l-stamp: 210 69 45;
+  --l-faded: 156 146 124;
+  --l-foil: 214 176 82;
+  background: rgb(var(--l-ground));
+  color: rgb(var(--l-paper));
+  font-family: "Figtree Variable", system-ui, sans-serif;
+  font-size: 15px;
+}
+
+/* Perforated paper: semicircle bites along the top and bottom edges. */
+.ledger-slip {
+  background: rgb(var(--l-paper));
+  color: rgb(var(--l-ink));
+  -webkit-mask:
+    radial-gradient(circle at 50% 0, transparent 5px, #000 5.5px) top / 14px 51% repeat-x,
+    radial-gradient(circle at 50% 100%, transparent 5px, #000 5.5px) bottom / 14px 51% repeat-x;
+  mask:
+    radial-gradient(circle at 50% 0, transparent 5px, #000 5.5px) top / 14px 51% repeat-x,
+    radial-gradient(circle at 50% 100%, transparent 5px, #000 5.5px) bottom / 14px 51% repeat-x;
+}
+
+.ledger-barcode {
+  height: 26px;
+  background: repeating-linear-gradient(
+    90deg, currentColor 0 2px, transparent 2px 4px, currentColor 4px 5px,
+    transparent 5px 8px, currentColor 8px 11px, transparent 11px 13px
+  );
+  opacity: 0.85;
+}
+
+/* Stamp: lands from large to normal with a little overshoot. */
+.ledger-stamp {
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  padding: 1px 7px;
+  border: 2.5px solid currentColor;
+  border-radius: 3px;
+  font: 700 15px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: 0.14em;
+  mix-blend-mode: multiply;
+  opacity: 0;
+  transform: translateY(-50%) rotate(var(--stamp-rot, -8deg)) scale(2.2);
+  pointer-events: none;
+}
+.ledger-stamp[data-on="true"] {
+  animation: ledger-stamp-in 0.28s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+.ledger-stamp[data-variant="foil"] {
+  color: rgb(var(--l-foil));
+  mix-blend-mode: normal;
+  text-shadow: 0 0 10px rgb(var(--l-foil) / 0.5);
+}
+@keyframes ledger-stamp-in {
+  from { opacity: 0; transform: translateY(-50%) rotate(var(--stamp-rot, -8deg)) scale(2.2); }
+  to   { opacity: 0.92; transform: translateY(-50%) rotate(var(--stamp-rot, -8deg)) scale(1); }
+}
+
+/* Odometer digit column: each digit is a stack 0-9 shifted by whole em. */
+.ledger-odo-col {
+  display: inline-block;
+  height: 1em;
+  line-height: 1;
+  overflow: hidden;
+}
+.ledger-odo-col > span {
+  display: block;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ledger-odo-col > span > i { display: block; height: 1em; font-style: normal; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ledger-stamp[data-on="true"] { animation-duration: 0.01ms; }
+  .ledger-odo-col > span { transition: none; }
+}
